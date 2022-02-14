@@ -7,7 +7,7 @@ LDFLAGS=-lm
 CFLAGS=-std=c11 -Wall -Wextra -pedantic -g
 
 $(bin_name): $(obj)
-	$(CC) -o $@ $^ #$(LDFLAGS)
+	$(CC) $(CFLAGS) -o $@ $^ #$(LDFLAGS)
 
 .PHONY: clean
 
