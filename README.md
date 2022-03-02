@@ -4,13 +4,14 @@
 **Login:** *xsmida03* \
 **Mail:** *xsmida03@vutbr.cz*
 
+
 Implementation of a server communicating via [HTTP](https://tools.ietf.org/html/rfc7231) in C programming language. The server provides information about the system. The server will be listening on the given port and according to the url it will return demanded information. Communication with this server is possible via a web browser, and by using `wget` and `curl` tools as well. 
 
 
 The server is able to process 3 types of requests, which are sent using the `GET` method:
-  - getting *domain name*
-  - getting *CPU information*
-  - getting *CPU load [%]* 
+  - getting **domain name**
+  - getting **CPU information**
+  - getting **CPU load** [%]
 
 ---
 
