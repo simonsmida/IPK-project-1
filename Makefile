@@ -3,8 +3,9 @@ bin_name=hinfosvc
 src = $(wildcard *.c)
 obj = $(src: .c = .o)
 
+# TODO gnu99
 LDFLAGS=-lm 
-CFLAGS=-std=c11 -Wall -Wextra -pedantic -g
+CFLAGS=-std=gnu99 -Wall -Wextra -pedantic -g
 
 $(bin_name): $(obj)
 	$(CC) $(CFLAGS) -o $@ $^ #$(LDFLAGS)

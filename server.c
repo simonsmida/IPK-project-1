@@ -169,6 +169,9 @@ void serve_resource(SOCKET client, char *path)
     } else if (!strcmp(path, "/load")) {
         get_load(content, &cl);
     } else {
+        // TODo check if there is nothing else to do about the server
+        // because we are basically just exiting from the whole program
+        // idk if we should close something before other than client's socket
         send_404(client);
         exit(EXIT_FAILURE);
     }
