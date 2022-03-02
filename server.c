@@ -1,16 +1,16 @@
-#define _DEFAULT_SOURCE
 #include <stdio.h>
 #include <errno.h>
 #include <stdlib.h> // atoi
 #include <string.h> // strlen
-#include <limits.h> // USHRT_MAX
 #include <sys/socket.h>
 #include <arpa/inet.h> // inet_addr
 #include <unistd.h> // write
 
 #define QUEUE 2  // number of pending connections
 #define MAX_BUFFER 1024
-#define SOCKET int
+#define MAX_PORT 65535
+
+typedef int socket_t;
 typedef unsigned long UL;
 
 /**
@@ -99,7 +99,7 @@ float get_cpu_load()
     return (float)(total_ld - idle_ld) / (float)total_ld;
 }
 
-void send_400(SOCKET client)
+void send_400(socket_t client)
 {
     const char *e400 = "HTTP/1.1 400 Bad Request\r\n"
                        "Connection: close\r\n"
@@ -109,7 +109,7 @@ void send_400(SOCKET client)
     close(client);
 }
 
-void send_404(SOCKET client)
+void send_404(socket_t client)
 {
     const char *e404 = "HTTP/1.1 404 Not Found\r\n"
                        "Connection: close\r\n"
@@ -150,7 +150,7 @@ void get_load(char *content, unsigned *content_length)
     *content_length = strlen(content); 
 }
 
-void serve_resource(SOCKET client, char *path)
+void serve_resource(socket_t client, char *path)
 {
     char response[MAX_BUFFER];
     sprintf(response, "HTTP/1.1 200 OK\r\n");
@@ -260,13 +260,13 @@ struct sockaddr_in create_socket_struct(const int port)
     return server_addr;
 }
 
-SOCKET create_socket(const int port)
+socket_t create_socket(const int port)
 {
     // Create socket for listening
     // AF_INET(domain)   ... IPv4 internet protocols
     // SOCK_STREAM(type) ... provides sequenced, reliable, two-way byte streams
     // 0 ... supporting only 1 protocol for this socket
-    SOCKET socket_listen = socket(AF_INET, SOCK_STREAM, 0);
+    socket_t socket_listen = socket(AF_INET, SOCK_STREAM, 0);
     if (socket_listen == -1) {
         perror("socket()");
         exit(EXIT_FAILURE);
@@ -307,7 +307,7 @@ SOCKET create_socket(const int port)
  */
 void serve_clients(const int port)
 {
-    SOCKET socket_listen = create_socket(port);
+    socket_t socket_listen = create_socket(port);
     initiate_live_server(socket_listen);
 }
 
@@ -335,7 +335,7 @@ int get_port_number(int argc, char **argv)
         exit(EXIT_FAILURE);
     }
 
-    if (port > USHRT_MAX) {
+    if (port > MAX_PORT) {
         fprintf(stderr, "Error: invalid port number, must be in range [0, 65535].\n");
         usage(argv);
         exit(EXIT_FAILURE);
