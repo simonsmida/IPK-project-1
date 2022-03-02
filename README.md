@@ -39,7 +39,7 @@ The server is expected to be already running
       Intel(R) Xeon(R) CPU E5-2640 0 @ 2.50GHz
       ```
   3. Getting **CPU load** [%]
-      - server returns information about a current CPU load
+      - server returns information about a current CPU load, e.g.:
       ```
       $ GET http://servername:12345/load
       65%
