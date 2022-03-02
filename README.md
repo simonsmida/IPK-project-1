@@ -1,37 +1,54 @@
-# ipk-projekt1
+# IPK project 1 - HTTP server in C
+
+**Author:** *Šimon Šmída* \
+**Login:** *xsmida03* \
+**Mail:** *xsmida03@vutbr.cz*
+
+Implementation of a server communicating via [HTTP](https://tools.ietf.org/html/rfc7231) in C programming language. The server provides information about the system. The server will be listening on the given port and according to the url it will return demanded information. Communication with this server is possible via a web browser, and by using `wget` and `curl` tools as well. 
 
 
-## Zadanie
-Vytvorit **server** v jazyku C/C++ komunikujuci prostrednictvom protokolu **HTTP**, ktory bude poskytovat rozne informacie o systeme. Server bude nasluchat (`listen`) na zadanom porte a podla url bude vracat pozadovane informacie. Server musi *spravne spracovavat hlavicky HTTP* a *vytvarat spravne HTTP odpovede*. Typ odpovede bude `text/plain`. Komunikacia so serverom by mala byt mozna pomocou **web browseru** a aj nastrojmi **wget** a **curl**. Nutnostou je spustenie na *Linux Ubuntu 20.04*
+The server is able to process 3 types of requests, which are sent using the `GET` method:
+  - getting *domain name*
+  - getting *CPU information*
+  - getting *CPU load [%]* 
 
-Server bude prelozitelny pomocou `Makefile`, ktory vytvori spustitelny subor `hinfosvc`.
-Server bude spustitelny s argumentom oznacujucim lokalny `port`, na ktorom bude nasluchat poziadavkam.
+---
 
-`./hinfosvc 12345`
+## Usage
+#### Start the server
+Server is waiting (actively) for incoming connections (requests) on the specified port
+```
+$ ./hinfosvc <port>
+```
 
-Server bude mozne ukoncit pomocou `CTRL+C`.
-Server bude vediet spracovat nasledujuce 3 typy dotazov, ktore su na server zaslane pomocou prikazu `GET`:
-  1. Ziskanie domenoveho mena:
-     - napr. `GET http://servername:12345/hostname` vrati `merlin.fit.vutbr.cz`
-  2. Ziskanie informacii o CPU:
-     - napr. `GET http://servername:12345/cpu-name` vrati `Intel(R) Xeon(R) CPU E5-2640 0 @ 2.50GHz`
-  3. Aktualnu zataz:
-     - napr. `GET http://servername:12345/load` vrati `65%`
-  
-  ### Kde v systeme ziskat potrebne informacie?
-    prikaz `uname`
-    prikaz `lscpu`
-    zo suboru v adresari `/proc`
-    
 
-## Implementacia
-  je **nutne** vyuzit kniznicu socketov: `sys/socket.h`
-  je **nepripustne** vyuzivat kniznice na spracovanie HTTP a pod. (ciel je minimum zavislosti)
+### Example 1
+The server is expected to be already running
 
-Sucastou projektu je aj **dokumentacia**, ktoru predstavuje subor `Readme.md` a obsahuje:
-  - strucny **popis** projektu
-  - **sposob spustenia** projektu
-  - **priklady pouzitia** projektu
+1. Getting **domain name**
+      - server returns a computer network name, including its domain, e.g.:
+      ```
+      $ GET http://servername:12345/hostname
+      $ merlin.fit.vutbr.cz
+      ```
+  2. Getting **CPU information**
+      - server returns information about a CPU, e.g.:
+      ```
+      $ GET http://servername:12345/cpu-name
+      $ Intel(R) Xeon(R) CPU E5-2640 0 @ 2.50GHz
+      ```
+  3. Getting **CPU load** [%]
+      - server returns information about a current CPU load
+      ```
+      $ GET http://servername:12345/load
+      $ 65%
+      ```
 
-  - nezabudnut uviest autora, sposob vytvorenia aplikacie, ukazkove priklady, dalsie inf...
-  - vid. napr https://github.com/me-and-company/readme-template
+### Example 2
+Using `curl`
+```
+$ ./hinfosvc 12345 &
+    curl http://localhost:12345/hostname
+    curl http://localhost:12345/cpu-name
+    curl http://localhost:12345/load
+```
