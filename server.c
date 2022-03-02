@@ -155,7 +155,8 @@ void serve_resource(socket_t client, char *path)
     char response[MAX_BUFFER];
     sprintf(response, "HTTP/1.1 200 OK\r\n");
     send(client, response, strlen(response), 0);
-
+    
+    // TODO decide what to do with it
     sprintf(response, "Connection: close\r\n");
     send(client, response, strlen(response), 0);
     
@@ -196,13 +197,12 @@ void serve_resource(socket_t client, char *path)
  */
 void initiate_live_server(int socket_listen)
 {
-    //char *message;
     int socket_client;
     struct sockaddr_in client_addr; 
     
     while (42) {
         // TODO get rid of me!
-        printf("Waiting for incoming connections...\n");
+        //printf("Waiting for incoming connections...\n");
 
         // Create new socket for current connection
         // socket_listen(sockfd) ... listening server socket
@@ -219,7 +219,7 @@ void initiate_live_server(int socket_listen)
             exit(EXIT_FAILURE);
         } 
         // TODO get rid of me!
-        printf("Connection accepted!\n");
+        //printf("Connection accepted!\n");
         char read_bytes[MAX_BUFFER];
         int bytes_received = recv(socket_client, read_bytes, MAX_BUFFER, 0);
         read_bytes[bytes_received] = '\0';
@@ -233,14 +233,12 @@ void initiate_live_server(int socket_listen)
                     send_400(socket_client);
                 } else {
                     *end_path = '\0';
-                    printf("Path: %s\n", path);
+                    //printf("Path: %s\n", path);
                     serve_resource(socket_client, path);
                 }
             }
         }
-        // TODO handle 3 request options (/hostname, /cpu-name, /load)
-        // TODO reply to the client
-        // close(socket_client);
+        // TODO close(socket_client);
     }
 }
 
