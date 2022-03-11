@@ -1,0 +1,101 @@
+#!/usr/bin/bash
+
+print_help() {
+    echo "Usage: ./script [-p] <port>"
+}
+
+
+RED='\033[1;31m'
+GREEN='\033[1;32m'
+NC='\033[0m'
+PORT=$1
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -h|--help)
+            print_help
+            exit 0 
+            ;;
+        -p)
+            PORT=$1
+            shift 
+            ;;
+        *)
+            shift
+            ;;
+    esac
+done
+
+if [ -z $PORT ]; then
+  echo Please specify a port as the first argument
+  exit 0
+fi
+
+request() {
+    REQ=$1
+    TYPE=$2
+    STATUS_OK="HTTP/1.1 200 OK"
+    STATUS_BAD="HTTP/1.1 400 Bad Request"
+    STATUS_NOT="HTTP/1.1 404 Not Found"
+
+    #RESPONSE=$(curl "http://localhost:$PORT/hostname" 2>/dev/null)
+    RESPONSE=$(echo -e "${REQ}" | nc localhost $PORT 2>/dev/null)
+    STATUS=$(echo "${RESPONSE}" | head -n1)
+    STATUS=$(echo "${STATUS//[$'\r\n']}")
+    
+    if [ -z "${RESPONSE}" ]; then
+        echo -e "${RED}fail:${NC} \c"
+        echo "response of '${REQ}' empty!"
+    else
+        case "$TYPE" in
+            "OK")
+                echo "Testing valid request: '${REQ}'"
+                echo -e "Response:\n--------------------\n$RESPONSE\n"
+                if [ "$STATUS" = "$STATUS_OK" ]; then
+                    echo -e "${GREEN}SUCCESS:${NC} status '${STATUS_OK}' valid"
+                else
+                    echo -e "${RED}fail:${NC} status '$STATUS' should be '$STATUS_OK'"
+                fi
+                ;;
+            "NOT")
+                echo "Testing Not found: '${REQ}'"
+                echo -e "Response:\n--------------------\n$RESPONSE\n"
+                if [ "$STATUS" = "$STATUS_NOT" ]; then
+                    echo -e "${GREEN}SUCCESS:${NC} status '${STATUS_NOT}' valid"
+                else
+                    echo -e "${RED}fail:${NC} status '$STATUS' should be '$STATUS_NOT'"
+                fi
+                ;;
+            "BAD")
+                echo "Testing invalid request: '${REQ}'"
+                echo -e "Response:\n--------------------\n$RESPONSE\n"
+                if [ "$STATUS" = "$STATUS_BAD" ]; then
+                    echo -e "${GREEN}SUCCESS:${NC} status '${STATUS_BAD}' valid"
+                else
+                    echo -e "${RED}fail:${NC} status '$STATUS' should be '$STATUS_BAD'"
+                fi
+                ;;
+        esac
+    fi
+    echo -e "==============================================================\n"
+}
+
+# Add your own tests here
+ipk_status_test() {
+    
+    # Valid requests
+    request "GET /hostname HTTP/1.1\r\n\r\n" "OK"
+    request "GET /cpu-name HTTP/1.1\r\n\r\n" "OK"
+    request "GET /load HTTP/1.1\r\n\r\n" "OK"
+
+    # Valid but not found error
+    request "GET /purpose-of-life HTTP/1.1\r\n\r\n" "NOT"
+
+    # Bad requests
+    request "GET /hostname HOVNO/1.1\r\n\r\n" "BAD"
+    request "GET /hostname HOVNO/1.1" "BAD"
+    request "fdasfasfdsafdasfasd" "BAD"
+}
+
+# Start testing hard
+ipk_status_test
