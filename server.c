@@ -1,10 +1,16 @@
+/**
+ * Description: Simple HTTP server 
+ * @author Simon Smida, xsmida03
+ */
+
 #include <stdio.h>
 #include <errno.h>
-#include <stdlib.h> // atoi
-#include <string.h> // strlen
+#include <stdlib.h>    // atoi
+#include <string.h>    // strlen
+#include <ctype.h>     // isspace()
 #include <sys/socket.h>
 #include <arpa/inet.h> // inet_addr
-#include <unistd.h> // write
+#include <unistd.h>    // sleep, close
 
 #define QUEUE 2  // number of pending connections
 #define MAX_BUFFER 1024
@@ -12,6 +18,7 @@
 
 typedef int socket_t;
 typedef unsigned long UL;
+
 
 /**
  * @brief Print program usage
@@ -22,6 +29,9 @@ void usage(char **argv)
 }
 
 
+/**
+ * @brief Get cpu statistics from /proc/stat
+ */
 int get_cpu_data(char *what_data)
 {
     char *awk_field;
@@ -57,6 +67,10 @@ int get_cpu_data(char *what_data)
     return atoi(data);
 }
 
+/**
+ * @brief Calculate the cpu load
+ * source: https://stackoverflow.com/questions/23367857/accurate-calculation-of-cpu-usage-given-in-percentage-in-linux
+ */
 float get_cpu_load()
 {
     int prev_idle_i   = get_cpu_data("idle");
@@ -94,11 +108,19 @@ float get_cpu_load()
     // Differentiate: actual value minus the previous one
     UL total_ld = total - prev_total;
     UL idle_ld = idle - prev_idle;
-
-    // TODO handle menovatel = 0
+    
+    // Test zero division - should not happen
+    if (total_ld == 0) {
+        fprintf(stderr, "Error: division by 0 while calculating the cpu load.\n");
+        exit(EXIT_FAILURE);
+    }
+    
     return (float)(total_ld - idle_ld) / (float)total_ld;
 }
 
+/**
+ * @brief Send error 400 to the client - Bad Request
+ */
 void send_400(socket_t client)
 {
     const char *e400 = "HTTP/1.1 400 Bad Request\r\n"
@@ -109,6 +131,9 @@ void send_400(socket_t client)
     close(client);
 }
 
+/**
+ * @brief Send error 404 to the client - Not Found
+ */
 void send_404(socket_t client)
 {
     const char *e404 = "HTTP/1.1 404 Not Found\r\n"
@@ -119,29 +144,51 @@ void send_404(socket_t client)
     close(client);
 }
 
+/**
+ * @brief Get the name of the host from /etc/hostname
+ */
 void get_hostname(char *content, unsigned *content_length)
 {
-    gethostname(content, MAX_BUFFER);
-    *content_length = strlen(content);
-}
-
-void get_cpuname(char *content, unsigned *content_length)
-{
-    FILE *fd = popen(
-            "cat /proc/cpuinfo | "
-            "grep 'model name' | "
-            "head -n 1 | awk -F ':' '{print $2}'", "r"
-    );
-    
+    FILE *fd = popen("cat /etc/hostname", "r");
+        
     if (fgets(content, MAX_BUFFER, fd) == NULL) {
         pclose(fd);
-        fprintf(stderr, "Error: could not get cpu name, fgets() failed\n");
+        fprintf(stderr, "Error: could not get hostname, fgets() failed\n");
         exit(EXIT_FAILURE);
     }
     *content_length = strlen(content);
     pclose(fd);
 }
 
+/**
+ * @brief Get the model of the cpu from /proc/cpuinfo
+ */
+void get_cpuname(char *content, unsigned *content_length)
+{
+    FILE *fd = popen(
+            "cat /proc/cpuinfo | "
+            "grep -i 'model name' | "
+            "head -n 1 | awk -F ':' '{print $2}'", "r"
+    );
+    
+    // Skip blank characters from the beginning
+    int c, i = 0;
+    int first_char_set = 0;
+    while ((c=fgetc(fd)) != EOF) {
+        if (!first_char_set && (isspace(c))) {
+            continue;
+        } 
+        content[i++] = c;
+        first_char_set = 1;
+    }
+    content[i] = '\0'; // terminator
+    *content_length = strlen(content);
+    pclose(fd);
+}
+
+/**
+ * @brief Get the cpu load and convert it to percentages
+ */
 void get_load(char *content, unsigned *content_length) 
 {
     float cpu_load = get_cpu_load();
@@ -150,32 +197,17 @@ void get_load(char *content, unsigned *content_length)
     *content_length = strlen(content); 
 }
 
-void serve_resource(socket_t client, char *path)
+/**
+ * @brief Send http response to the client with specified content
+ */
+void send_response(socket_t client, char *content, int cl)
 {
     char response[MAX_BUFFER];
     sprintf(response, "HTTP/1.1 200 OK\r\n");
     send(client, response, strlen(response), 0);
     
-    // TODO decide what to do with it
     sprintf(response, "Connection: close\r\n");
     send(client, response, strlen(response), 0);
-    
-    unsigned cl; // content length
-    char content[MAX_BUFFER];
-
-    if (!strcmp(path, "/hostname")) {
-        get_hostname(content, &cl);
-    } else if (!strcmp(path, "/cpu-name")) {
-        get_cpuname(content, &cl);
-    } else if (!strcmp(path, "/load")) {
-        get_load(content, &cl);
-    } else {
-        // TODo check if there is nothing else to do about the server
-        // because we are basically just exiting from the whole program
-        // idk if we should close something before other than client's socket
-        send_404(client);
-        exit(EXIT_FAILURE);
-    }
     
     sprintf(response, "Content-length: %u\r\n", cl);
     send(client, response, strlen(response), 0);
@@ -188,8 +220,72 @@ void serve_resource(socket_t client, char *path)
     
     sprintf(response, "%s", content);
     send(client, response, strlen(response), 0);
+}
 
+/**
+ * @brief Serve resource specified by the client
+ */
+void serve_resource(socket_t client, char *path)
+{
+    unsigned cl; // content length
+    char content[MAX_BUFFER];
+
+    if (!strcmp(path, "/hostname")) {
+        get_hostname(content, &cl);
+    } else if (!strcmp(path, "/cpu-name")) {
+        get_cpuname(content, &cl);
+    } else if (!strcmp(path, "/load")) {
+        get_load(content, &cl);
+    } else {
+        send_404(client); 
+        return;
+    }
+    
+    send_response(client, content, cl);
     close(client);
+}
+
+/**
+ * @breif Check request validity and serve requested resource
+ */
+void handle_request(char *request, socket_t socket_client)
+{
+    // Check content separator - empty line
+    char *req_end = strstr(request, "\r\n\r\n");
+    if (!req_end) {
+        send_400(socket_client);
+        return;
+    }
+    *req_end = '\0'; // terminator
+     
+    // This server supports only GET requests
+    if (strncmp("GET /", request, 5)) {
+        send_400(socket_client);
+        return;
+    } 
+    
+    // Get the requested path
+    char *path = request + 4;
+    char *end_path = strstr(path, " ");
+    if (!end_path) {
+        send_400(socket_client);
+        return;
+    }
+    *end_path = '\0';
+
+    // Get the rest of the request
+    char *remaining = end_path + 1;
+    char *end_remaining = strstr(remaining, "\r\n");
+    if (end_remaining) {
+        *end_remaining = '\0';
+    }
+    
+    if (strcmp(remaining, "HTTP/1.1")) {
+        send_400(socket_client);
+        return;
+    } 
+    
+    serve_resource(socket_client, path);
 }
 
 /**
@@ -201,13 +297,10 @@ void initiate_live_server(int socket_listen)
     struct sockaddr_in client_addr; 
     
     while (42) {
-        // TODO get rid of me!
-        //printf("Waiting for incoming connections...\n");
-
         // Create new socket for current connection
         // socket_listen(sockfd) ... listening server socket
-        // client_addr(addr) ... socket address of the client
-        // client_len(addrlen) ... size of structure pointed to by client_addr
+        // client_addr(addr)     ... socket address of the client
+        // client_len(addrlen)   ... size of structure pointed to by client_addr
         socklen_t client_len = sizeof(struct sockaddr_in);
         socket_client = accept(
                 socket_listen, 
@@ -218,28 +311,18 @@ void initiate_live_server(int socket_listen)
             perror("accept()");
             exit(EXIT_FAILURE);
         } 
-        // TODO get rid of me!
-        //printf("Connection accepted!\n");
-        char read_bytes[MAX_BUFFER];
-        int bytes_received = recv(socket_client, read_bytes, MAX_BUFFER, 0);
-        read_bytes[bytes_received] = '\0';
-        if (strstr(read_bytes, "\r\n\r\n")) {
-            if (strncmp("GET /", read_bytes, 5)) {
-                send_400(socket_client);
-            } else {
-                char *path = read_bytes + 4;
-                char *end_path = strstr(path, " ");
-                if (!end_path) {
-                    send_400(socket_client);
-                } else {
-                    *end_path = '\0';
-                    //printf("Path: %s\n", path);
-                    serve_resource(socket_client, path);
-                }
-            }
+        
+        // Read the request
+        char request[MAX_BUFFER+1];
+        int n_bytes = recv(socket_client, request, MAX_BUFFER, 0);
+        if (n_bytes < 1) {
+            close(socket_client);
+            fprintf(stderr, "Could not read the request, waiting for another one\n");
+            continue;            
         }
-        // TODO close(socket_client);
-    }
+        request[n_bytes] = '\0'; // terminator
+        handle_request(request, socket_client);
+    } // while
 }
 
 /**
@@ -258,6 +341,11 @@ struct sockaddr_in create_socket_struct(const int port)
     return server_addr;
 }
 
+/**
+ * @brief Create and initialize the socket for listening
+ * @param port port number
+ * @return socket file descriptor
+ */
 socket_t create_socket(const int port)
 {
     // Create socket for listening
@@ -291,7 +379,7 @@ socket_t create_socket(const int port)
     }
 
     // Listen on the port
-    if (listen(socket_listen, QUEUE) < 0) {
+    if (listen(socket_listen, QUEUE) < 0) { 
         perror("listen()");
         exit(EXIT_FAILURE);
     }
