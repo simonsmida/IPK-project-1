@@ -1,6 +1,6 @@
 # HTTP server in C
 
-🏷️: IPK-project1
+🏷️: IPK-project1\
 🧑🏻‍💻: *Šimon Šmída* (xsmida03)\
 ✉️: *xsmida03@vutbr.cz* 
 
