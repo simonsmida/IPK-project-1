@@ -1,8 +1,8 @@
-# IPK project 1 - HTTP server in C
+# HTTP server in C
 
+🏷️: IPK-project1
 🧑🏻‍💻: *Šimon Šmída* (xsmida03)\
 ✉️: *xsmida03@vutbr.cz* 
-
 
 Implementation of a server communicating via [HTTP](https://tools.ietf.org/html/rfc7231) in C programming language. The server provides information about the system. The server will be listening on the given port and according to the url it will return demanded information. Communication with this server is possible via a web browser, and by using `wget` and `curl` tools as well. 
 
